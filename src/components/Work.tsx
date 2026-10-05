@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -10,7 +10,7 @@ import "./styles/Work.css";
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 // ----------------------------------------------------
-// Projects Data Array (Editable at top of file)
+// Projects Data Array
 // ----------------------------------------------------
 interface ProjectItem {
   id: string;
@@ -75,34 +75,150 @@ const projects: ProjectItem[] = [
   },
 ];
 
-const Work = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+// Duplicate projects for seamless infinite marquee loop
+const duplicatedProjects = [...projects, ...projects];
 
-  // Recalibrate trigger positions after fonts/images load & Experience height changes, connect Lenis
+const BASE_SPEED = 60; // Base speed in px/s
+
+interface WorkCardProps {
+  project: ProjectItem;
+  index: number;
+}
+
+const WorkCard = ({ project, index }: WorkCardProps) => {
+  const [isCardHovered, setIsCardHovered] = useState(false);
+
+  return (
+    <div
+      className="work-card"
+      onMouseEnter={() => setIsCardHovered(true)}
+      onMouseLeave={() => setIsCardHovered(false)}
+    >
+      <div className="work-card-media">
+        <WorkImage
+          image={project.image}
+          alt={project.title}
+          video={project.video}
+          link={project.liveUrl !== "#" ? project.liveUrl : project.githubUrl}
+          title={project.title}
+          category={project.category}
+          isCardHovered={isCardHovered}
+        />
+      </div>
+
+      <div className="work-card-content">
+        <div className="work-meta">
+          <span className="work-screen-badge">0{index + 1}</span>
+          <span className="work-category-tag">{project.category}</span>
+        </div>
+
+        <h3 className="work-project-title">{project.title}</h3>
+        <p className="work-project-description">{project.description}</p>
+
+        <div className="work-tools-group">
+          <span className="work-tools-label">Tools &amp; Features</span>
+          <p className="work-tools-text">{project.tools}</p>
+        </div>
+
+        <div className="work-action-buttons">
+          {project.liveUrl && project.liveUrl !== "#" && (
+            <a
+              href={project.liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="work-btn work-btn-live"
+              data-cursor="disable"
+            >
+              <span>Live Demo</span>
+              <MdArrowOutward />
+            </a>
+          )}
+          {project.githubUrl && (
+            <a
+              href={project.githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="work-btn work-btn-github"
+              data-cursor="disable"
+            >
+              <FaGithub />
+              <span>GitHub</span>
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Work = () => {
+  const sectionRef = useRef<HTMLElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Marquee state refs
+  const xPosRef = useRef(0);
+  const loopWidthRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const hasMovedRef = useRef(false);
+  const startXRef = useRef(0);
+  const lastXRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  const momentumVelocityRef = useRef(0);
+  const speedRef = useRef({ value: BASE_SPEED });
+  const scrollBoostRef = useRef(0);
+
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Measure exact distance between Card 0 and Card 4 (one complete set)
+  const updateLoopWidth = useCallback(() => {
+    if (!trackRef.current) return;
+    const cards = trackRef.current.querySelectorAll<HTMLElement>(".work-card");
+    if (cards.length >= 8) {
+      const r0 = cards[0].getBoundingClientRect();
+      const r4 = cards[4].getBoundingClientRect();
+      const dist = r4.left - r0.left;
+      if (dist > 50) {
+        loopWidthRef.current = dist;
+      }
+    }
+  }, []);
+
+  // Update speed based on prefers-reduced-motion
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      speedRef.current.value = 0;
+    }
+  }, [prefersReducedMotion]);
+
+  // Recalibrate trigger positions and dimensions after fonts/images load & Experience height changes
   useEffect(() => {
     const handleRefresh = () => {
+      updateLoopWidth();
       ScrollTrigger.sort();
       ScrollTrigger.refresh();
     };
 
     window.addEventListener("load", handleRefresh);
+    window.addEventListener("resize", handleRefresh);
     if (document.fonts) {
       document.fonts.ready.then(handleRefresh);
     }
 
-    // Observe Experience section height changes to ensure trigger positions never become stale
     const careerSection = document.querySelector(".career-section");
     let resizeObserver: ResizeObserver | null = null;
     if (careerSection && window.ResizeObserver) {
       resizeObserver = new ResizeObserver(() => {
-        ScrollTrigger.sort();
-        ScrollTrigger.refresh();
+        handleRefresh();
       });
       resizeObserver.observe(careerSection);
     }
 
-    // Keep Lenis connected: lenis.on('scroll', ScrollTrigger.update) and gsap.ticker driving lenis.raf
+    // Keep Lenis connected if available
     const lenis = (window as any).lenis;
     let tickerCallback: ((time: number) => void) | null = null;
     if (lenis) {
@@ -114,8 +230,12 @@ const Work = () => {
       gsap.ticker.lagSmoothing(0);
     }
 
+    const timer = setTimeout(handleRefresh, 350);
+
     return () => {
       window.removeEventListener("load", handleRefresh);
+      window.removeEventListener("resize", handleRefresh);
+      clearTimeout(timer);
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
@@ -126,224 +246,241 @@ const Work = () => {
         }
       }
     };
+  }, [updateLoopWidth]);
+
+  // Drag and Pointer interaction handlers
+  const onPointerMove = useCallback((e: PointerEvent) => {
+    if (!isDraggingRef.current) return;
+
+    const dx = e.clientX - lastXRef.current;
+    const now = performance.now();
+    const dt = (now - lastTimeRef.current) / 1000;
+
+    if (Math.abs(e.clientX - startXRef.current) > 6) {
+      hasMovedRef.current = true;
+    }
+
+    xPosRef.current += dx;
+
+    // Immediately wrap and apply transform for zero latency
+    if (loopWidthRef.current > 0) {
+      const wrapped = gsap.utils.wrap(-loopWidthRef.current, 0, xPosRef.current);
+      xPosRef.current = wrapped;
+      if (trackRef.current) {
+        gsap.set(trackRef.current, { x: wrapped, force3D: true });
+      }
+    }
+
+    if (dt > 0.008) {
+      const v = dx / dt;
+      momentumVelocityRef.current =
+        momentumVelocityRef.current * 0.3 + v * 0.7;
+      lastXRef.current = e.clientX;
+      lastTimeRef.current = now;
+    }
   }, []);
+
+  const onPointerUp = useCallback((e: PointerEvent) => {
+    if (!isDraggingRef.current) return;
+
+    isDraggingRef.current = false;
+    setIsDragging(false);
+
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerUp);
+
+    // If mouse was stationary for a moment before release, drop momentum
+    if (performance.now() - lastTimeRef.current > 120) {
+      momentumVelocityRef.current = 0;
+    } else {
+      momentumVelocityRef.current = Math.max(
+        -2500,
+        Math.min(2500, momentumVelocityRef.current)
+      );
+    }
+
+    // Check if cursor is still over viewport on pointer up
+    if (viewportRef.current) {
+      const rect = viewportRef.current.getBoundingClientRect();
+      const isInside =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+
+      if ((!isInside || e.pointerType === "touch") && !prefersReducedMotion) {
+        gsap.to(speedRef.current, {
+          value: BASE_SPEED,
+          duration: 0.8,
+          ease: "power2.out",
+          overwrite: "auto",
+        });
+      }
+    }
+
+    // Delay clearing hasMoved so click capture can intercept clicks
+    if (hasMovedRef.current) {
+      setTimeout(() => {
+        hasMovedRef.current = false;
+      }, 60);
+    }
+  }, [onPointerMove, prefersReducedMotion]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    hasMovedRef.current = false;
+    startXRef.current = e.clientX;
+    lastXRef.current = e.clientX;
+    lastTimeRef.current = performance.now();
+    momentumVelocityRef.current = 0;
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+  };
+
+  // Hover handlers for the marquee track
+  const handleMouseEnter = () => {
+    if (prefersReducedMotion) return;
+    gsap.to(speedRef.current, {
+      value: 0,
+      duration: 0.6,
+      ease: "power2.out",
+      overwrite: "auto",
+    });
+  };
+
+  const handleMouseLeave = () => {
+    if (prefersReducedMotion || isDraggingRef.current) return;
+    gsap.to(speedRef.current, {
+      value: BASE_SPEED,
+      duration: 0.8,
+      ease: "power2.out",
+      overwrite: "auto",
+    });
+  };
+
+  // Click capture prevents link clicks during drag gestures
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (hasMovedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
 
   useGSAP(
     () => {
-      try {
-        const prefersReducedMotion = window.matchMedia(
-          "(prefers-reduced-motion: reduce)"
-        ).matches;
-
-        const mm = gsap.matchMedia();
-
-        // Desktop: Single pinned ScrollTrigger timeline
-        mm.add("(min-width: 901px)", () => {
-          const screens =
-            containerRef.current?.querySelectorAll<HTMLElement>(".work-screen");
-          if (!screens || screens.length === 0) return;
-
-          // Project 1 must be fully visible and static when the pin starts
-          screens.forEach((screen, i) => {
-            if (i === 0) {
-              gsap.set(screen, { opacity: 1, y: 0, pointerEvents: "auto" });
-            } else {
-              gsap.set(screen, { opacity: 0, y: 30, pointerEvents: "none" });
-            }
-          });
-
-          // ONE ScrollTrigger — trigger is the outer #work section (stays in flow),
-          // pin is the inner .work-pin (what visually sticks to viewport top).
-          // pinSpacing is added to #work automatically so TechStack never overlaps.
-          const tl = gsap.timeline({
-            scrollTrigger: {
-              id: "work",
-              trigger: "#work",
-              start: "top top",
-              end: () => "+=" + (projects.length - 1) * window.innerHeight,
-              pin: ".work-pin",
-              pinSpacing: true,
-              scrub: 1,
-              anticipatePin: 1,
-              invalidateOnRefresh: true,
-              onUpdate: (self) => {
-                // Active index computed exclusively from this trigger's progress.
-                const idx = Math.min(
-                  projects.length - 1,
-                  Math.floor(self.progress * projects.length)
-                );
-                setActiveIndex(idx);
-              },
-            },
-          });
-
-          // Total timeline duration = projects.length - 1 (e.g. 3 units for 4 projects)
-          // Project 1 stays visible and static at the moment pin starts (time 0)
-          // Transitions to 2, 3, 4 happen in sequence: 01 → 02 → 03 → 04
-          for (let i = 0; i < screens.length - 1; i++) {
-            const current = screens[i];
-            const next = screens[i + 1];
-            const transitionStart = i + 0.25;
-            const transitionDuration = 0.75;
-
-            if (!prefersReducedMotion) {
-              tl.to(
-                current,
-                {
-                  opacity: 0,
-                  y: -30,
-                  duration: transitionDuration,
-                  ease: "power1.inOut",
-                  pointerEvents: "none",
-                },
-                transitionStart
-              ).to(
-                next,
-                {
-                  opacity: 1,
-                  y: 0,
-                  duration: transitionDuration,
-                  ease: "power1.inOut",
-                  pointerEvents: "auto",
-                },
-                transitionStart
-              );
-            } else {
-              tl.to(
-                current,
-                {
-                  opacity: 0,
-                  duration: transitionDuration,
-                  pointerEvents: "none",
-                },
-                transitionStart
-              ).to(
-                next,
-                {
-                  opacity: 1,
-                  duration: transitionDuration,
-                  pointerEvents: "auto",
-                },
-                transitionStart
-              );
-            }
-          }
-
-          // Ensure triggers are sorted in DOM order (Experience, Work, TechStack)
-          // after all triggers from this mm.add() are registered.
-          ScrollTrigger.sort();
-          // Deferred refresh catches any layout shift from lazy-loaded sections above.
-          requestAnimationFrame(() => ScrollTrigger.refresh());
+      // 1. Entrance animation: cards fade and slide up once when section enters viewport
+      const cards = trackRef.current?.querySelectorAll(".work-card");
+      if (cards && cards.length > 0) {
+        gsap.from(cards, {
+          opacity: 0,
+          y: 40,
+          duration: 0.9,
+          stagger: 0.08,
+          ease: "power2.out",
+          clearProps: "opacity",
+          scrollTrigger: {
+            trigger: "#work",
+            start: "top 80%",
+            once: true,
+          },
         });
-
-        // Mobile: Natural vertical stack
-        mm.add("(max-width: 900px)", () => {
-          const screens =
-            containerRef.current?.querySelectorAll<HTMLElement>(".work-screen");
-          if (screens) {
-            screens.forEach((screen) => {
-              gsap.set(screen, { opacity: 1, y: 0, pointerEvents: "auto" });
-            });
-          }
-        });
-
-        return () => {
-          mm.revert();
-        };
-      } catch (err) {
-        console.warn("Work GSAP setup error:", err);
       }
+
+      updateLoopWidth();
+
+      // Continuous ticker loop for smooth auto-scroll, momentum, and scroll boost
+      const tick = (_time: number, deltaTime: number) => {
+        const dt = Math.min(deltaTime / 1000, 0.1);
+        const loopWidth = loopWidthRef.current;
+
+        if (!loopWidth || loopWidth <= 0) {
+          updateLoopWidth();
+          return;
+        }
+
+        if (isDraggingRef.current) {
+          return;
+        }
+
+        // Apply drag momentum with exponential decay
+        if (Math.abs(momentumVelocityRef.current) > 0.5) {
+          xPosRef.current += momentumVelocityRef.current * dt;
+          momentumVelocityRef.current *= Math.pow(0.92, dt * 60);
+          if (Math.abs(momentumVelocityRef.current) <= 0.5) {
+            momentumVelocityRef.current = 0;
+          }
+        }
+
+        // Read page scroll velocity from ScrollTrigger or Lenis to briefly accelerate the marquee
+        let scrollVel = 0;
+        if (!prefersReducedMotion) {
+          try {
+            const st = ScrollTrigger as any;
+            if (typeof st.getVelocity === "function") {
+              scrollVel = Math.abs(st.getVelocity());
+            } else if ((window as any).lenis?.velocity) {
+              scrollVel = Math.abs((window as any).lenis.velocity);
+            }
+          } catch {}
+        }
+
+        const targetBoost = prefersReducedMotion
+          ? 0
+          : Math.min(scrollVel * 0.12, 320);
+        scrollBoostRef.current +=
+          (targetBoost - scrollBoostRef.current) * Math.min(1, 10 * dt);
+
+        const currentSpeed = speedRef.current.value + scrollBoostRef.current;
+        xPosRef.current -= currentSpeed * dt;
+
+        // Wrap around seamlessly
+        const wrappedX = gsap.utils.wrap(-loopWidth, 0, xPosRef.current);
+        xPosRef.current = wrappedX;
+
+        if (trackRef.current) {
+          gsap.set(trackRef.current, { x: wrappedX, force3D: true });
+        }
+      };
+
+      gsap.ticker.add(tick);
+
+      return () => {
+        gsap.ticker.remove(tick);
+      };
     },
-    { scope: containerRef }
+    { scope: sectionRef }
   );
 
   return (
-    <section id="work">
-      <div className="work-pin" ref={containerRef}>
-        <div className="work-container section-container">
-          {/* Sticky Header with Title and Global Progress */}
-          <div className="work-header">
-            <h2>
-              My <span>Work</span>
-            </h2>
-            <div className="work-progress-indicator">
-              <span className="current-num">0{activeIndex + 1}</span>
-              <span className="separator">/</span>
-              <span className="total-num">0{projects.length}</span>
-            </div>
-          </div>
+    <section id="work" ref={sectionRef}>
+      <div className="work-header">
+        <h2>
+          My <span>Work</span>
+        </h2>
+      </div>
 
-          {/* Pinned Screens Area (Desktop) / Vertical Stack (Mobile) */}
-          <div className="work-screens-viewport">
-            {projects.map((project, index) => (
-              <div
-                className={`work-screen ${index === activeIndex ? "is-active" : ""}`}
-                key={project.id}
-              >
-                <div className="work-screen-inner">
-                  {/* Big Media Card (16:10) */}
-                  <div className="work-media-side">
-                    <WorkImage
-                      image={project.image}
-                      alt={project.title}
-                      video={project.video}
-                      link={project.liveUrl || project.githubUrl}
-                      title={project.title}
-                      category={project.category}
-                    />
-                  </div>
-
-                  {/* Details Card */}
-                  <div className="work-details-side">
-                    <div className="work-meta">
-                      <span className="work-screen-badge">
-                        0{index + 1} / 0{projects.length}
-                      </span>
-                      <span className="work-category-tag">{project.category}</span>
-                    </div>
-
-                    <h3 className="work-project-title">{project.title}</h3>
-                    <p className="work-project-description">
-                      {project.description}
-                    </p>
-
-                    <div className="work-tools-group">
-                      <span className="work-tools-label">Tools &amp; Features</span>
-                      <p className="work-tools-text">{project.tools}</p>
-                    </div>
-
-                    {/* Live and GitHub action buttons */}
-                    <div className="work-action-buttons">
-                      {project.liveUrl && project.liveUrl !== "#" && (
-                        <a
-                          href={project.liveUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="work-btn work-btn-live"
-                          data-cursor="disable"
-                        >
-                          <span>Live Demo</span>
-                          <MdArrowOutward />
-                        </a>
-                      )}
-                      {project.githubUrl && (
-                        <a
-                          href={project.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="work-btn work-btn-github"
-                          data-cursor="disable"
-                        >
-                          <FaGithub />
-                          <span>GitHub</span>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div
+        className={`work-carousel-viewport ${isDragging ? "is-dragging" : ""}`}
+        ref={viewportRef}
+        onPointerDown={handlePointerDown}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClickCapture={handleClickCapture}
+      >
+        <div className="work-track" ref={trackRef}>
+          {duplicatedProjects.map((project, idx) => (
+            <WorkCard
+              key={`${project.id}-${idx}`}
+              project={project}
+              index={idx % projects.length}
+            />
+          ))}
         </div>
       </div>
     </section>

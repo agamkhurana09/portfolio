@@ -1,44 +1,30 @@
-/* Outer section — plain normal-flow block. GSAP inserts a pinSpacing spacer
-   here automatically; its height grows to (projects.length - 1) * 100vh so
-   TechStack can never slide up into this zone. */
+/* ====================================================
+   Work Section: Infinite Horizontal Marquee Carousel
+   ==================================================== */
+
 #work {
   position: relative;
   width: 100%;
-  /* height is auto — GSAP's pinSpacing spacer controls total scroll budget */
-}
-
-/* Inner container that GSAP pins (position:fixed while scrolling through projects).
-   NO overflow:hidden — that would clip children during the fixed phase and also
-   corrupts GSAP's spacer measurement. */
-.work-pin {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
-  background-color: var(--backgroundColor);
-}
-
-.work-container {
-  width: var(--cWidth);
-  max-width: var(--cMaxWidth);
-  margin: auto;
-  height: 100%;
+  min-height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  position: relative;
+  padding: 100px 0;
+  box-sizing: border-box;
+  background-color: var(--backgroundColor);
 }
 
 /* Header */
 .work-header {
+  width: var(--cWidth);
+  max-width: var(--cMaxWidth);
+  margin: 0 auto 36px auto;
+  padding: 0 10px;
+  box-sizing: border-box;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: baseline;
-  width: 100%;
-  margin-bottom: 24px;
   z-index: 10;
 }
 
@@ -54,61 +40,73 @@
   color: var(--accentColor);
 }
 
-.work-progress-indicator {
-  font-size: 26px;
-  font-weight: 600;
-  color: #ffffff;
-  letter-spacing: 2px;
-  display: flex;
-  align-items: baseline;
-}
-
-.work-progress-indicator .separator {
-  color: var(--accentColor);
-  margin: 0 6px;
-}
-
-.work-progress-indicator .total-num {
-  color: #837597;
-}
-
-/* Viewport for screens */
-.work-screens-viewport {
+/* Carousel Viewport */
+.work-carousel-viewport {
+  width: 100%;
+  overflow: hidden;
   position: relative;
-  width: 100%;
-  height: 72vh;
-  min-height: 480px;
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y;
+  padding: 30px 0;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
 }
 
-.work-screen {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+.work-carousel-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+/* Track holding duplicate card sets */
+.work-track {
   display: flex;
-  align-items: center;
+  gap: 32px;
+  width: max-content;
+  will-change: transform;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* Card */
+.work-card {
+  width: min(70vw, 560px);
+  min-width: min(70vw, 560px);
+  flex-shrink: 0;
+  background: #130f1a;
+  border: 1px solid rgba(194, 164, 255, 0.16);
+  border-radius: 20px;
+  padding: 22px;
   box-sizing: border-box;
-}
-
-.work-screen-inner {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 50px;
-  align-items: center;
-}
-
-/* Big Image Card (16:10) */
-.work-media-side {
-  width: 100%;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55);
+  opacity: 1;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.4s ease,
+              box-shadow 0.4s ease;
+  transform-origin: center center;
+}
+
+/* Only hovered card scales to 1.03 with brighter border and glow; other cards stay at opacity 1 */
+.work-card:hover {
+  transform: scale(1.03);
+  border-color: rgba(194, 164, 255, 0.45);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 30px rgba(127, 64, 255, 0.28);
+}
+
+/* While dragging, disable card hover scaling for smooth tracking */
+.work-carousel-viewport.is-dragging .work-card {
+  transform: scale(1) !important;
+}
+
+/* Media Card (16:10 aspect ratio) */
+.work-card-media {
+  width: 100%;
 }
 
 .work-image-wrapper {
   width: 100%;
-  max-width: 760px;
   position: relative;
 }
 
@@ -124,10 +122,10 @@
   width: 100%;
   aspect-ratio: 16 / 10;
   overflow: hidden;
-  border-radius: 18px;
-  background: #130f1a;
-  border: 1px solid rgba(194, 164, 255, 0.16);
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55);
+  border-radius: 14px;
+  background: #0c0912;
+  border: 1px solid rgba(194, 164, 255, 0.14);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 .work-media-img {
@@ -136,9 +134,11 @@
   object-fit: cover;
   display: block;
   transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
-.work-image-wrapper:hover .work-media-img {
+.work-card:hover .work-media-img {
   transform: scale(1.04);
 }
 
@@ -161,10 +161,10 @@
 /* Arrow button animates in on hover */
 .work-image-arrow {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
-  width: 48px;
-  height: 48px;
+  bottom: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: rgba(18, 14, 26, 0.88);
   border: 1px solid rgba(194, 164, 255, 0.4);
@@ -172,7 +172,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   opacity: 0;
   transform: scale(0.7) translate(8px, 8px);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -181,12 +181,12 @@
   z-index: 5;
 }
 
-.work-image-wrapper:hover .work-image-arrow {
+.work-card:hover .work-image-arrow {
   opacity: 1;
   transform: scale(1) translate(0, 0);
 }
 
-/* Graceful Fallback if image missing */
+/* Graceful Fallback if image is missing */
 .work-image-fallback {
   width: 100%;
   height: 100%;
@@ -197,15 +197,15 @@
   background: linear-gradient(135deg, #1c152a 0%, #0c0912 100%);
   position: relative;
   overflow: hidden;
-  padding: 30px;
+  padding: 20px;
   box-sizing: border-box;
   text-align: center;
 }
 
 .fallback-glow {
   position: absolute;
-  width: 260px;
-  height: 260px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
   background: radial-gradient(
     circle,
@@ -224,33 +224,32 @@
 
 .fallback-category {
   color: var(--accentColor);
-  font-size: 13px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 2px;
   font-weight: 500;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .fallback-title {
   color: #ffffff;
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 600;
   margin: 0;
 }
 
-/* Details Side */
-.work-details-side {
+/* Card Content Details */
+.work-card-content {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .work-meta {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .work-screen-badge {
@@ -272,30 +271,34 @@
 }
 
 .work-project-title {
-  font-size: 42px;
-  line-height: 46px;
+  font-size: 28px;
+  line-height: 32px;
   font-weight: 600;
   color: #ffffff;
   margin: 0;
 }
 
 .work-project-description {
-  font-size: 16px;
-  line-height: 26px;
+  font-size: 15px;
+  line-height: 24px;
   color: #c0b6cd;
   font-weight: 300;
   margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .work-tools-group {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 
 .work-tools-label {
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: var(--accentColor);
@@ -303,28 +306,31 @@
 }
 
 .work-tools-text {
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 20px;
   color: #ddd4e9;
   font-weight: 400;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Live & GitHub Action Buttons */
+/* Action Buttons */
 .work-action-buttons {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-top: 8px;
+  gap: 12px;
+  margin-top: 6px;
 }
 
 .work-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 22px;
+  padding: 9px 20px;
   border-radius: 24px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   font-family: "Geist", sans-serif;
   cursor: pointer;
@@ -361,86 +367,60 @@
 }
 
 /* Responsive */
-@media only screen and (max-width: 1400px) {
-  .work-header h2 {
-    font-size: 52px;
-    line-height: 52px;
-  }
-  .work-project-title {
-    font-size: 36px;
-    line-height: 40px;
-  }
-  .work-screen-inner {
-    gap: 36px;
-  }
-}
-
-@media only screen and (max-height: 850px) {
-  .work-header {
-    margin-bottom: 12px;
-  }
-  .work-header h2 {
-    font-size: 46px;
-    line-height: 46px;
-  }
-  .work-project-title {
-    font-size: 32px;
-    line-height: 36px;
-  }
-  .work-project-description {
-    font-size: 14px;
-    line-height: 22px;
-  }
-  .work-screens-viewport {
-    height: 70vh;
-  }
-}
-
-/* Mobile: Stack vertically */
 @media only screen and (max-width: 900px) {
   #work {
-    height: auto;
-  }
-  .work-pin {
-    height: auto;
-    padding: 80px 0;
+    min-height: auto;
+    padding: 70px 0;
   }
   .work-header {
-    margin-bottom: 36px;
+    margin-bottom: 24px;
+    padding: 0 16px;
   }
   .work-header h2 {
     font-size: 42px;
     line-height: 46px;
   }
-  .work-progress-indicator {
-    display: none;
-  }
-  .work-screens-viewport {
-    height: auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 70px;
-  }
-  .work-screen {
-    position: relative;
-    width: 100%;
-    height: auto;
-    opacity: 1 !important;
-    transform: none !important;
-    pointer-events: auto !important;
-  }
-  .work-screen-inner {
-    grid-template-columns: 1fr;
-    gap: 22px;
+  .work-card {
+    width: 85vw;
+    min-width: 85vw;
+    padding: 18px;
+    border-radius: 18px;
+    gap: 16px;
   }
   .work-project-title {
-    font-size: 30px;
-    line-height: 34px;
+    font-size: 24px;
+    line-height: 28px;
+  }
+  .work-project-description {
+    font-size: 14px;
+    line-height: 22px;
   }
 }
 
+@media only screen and (max-width: 480px) {
+  .work-header h2 {
+    font-size: 34px;
+    line-height: 38px;
+  }
+  .work-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+  .work-project-title {
+    font-size: 20px;
+    line-height: 24px;
+  }
+  .work-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+}
+
+/* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
+  .work-card {
+    transition: none !important;
+  }
   .work-media-img {
     transition: none !important;
   }

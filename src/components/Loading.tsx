@@ -58,6 +58,7 @@ const Loading = ({ percent }: { percent: number }) => {
       setTimeout(() => {
         setIsLoading(false);
         document.body.style.overflowY = "auto";
+        import("./utils/initialFX").then((m) => m.initialFX?.());
       }, 300);
     }, 6000);
 
