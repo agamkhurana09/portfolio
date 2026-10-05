@@ -1,43 +1,97 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { MdArrowOutward } from "react-icons/md";
+import "./styles/Work.css";
 
-interface Props {
+interface WorkImageProps {
   image: string;
-  alt?: string;
+  alt: string;
   video?: string;
   link?: string;
+  title: string;
+  category: string;
 }
 
-const WorkImage = (props: Props) => {
-  const [isVideo, setIsVideo] = useState(false);
-  const [video, setVideo] = useState("");
-  const handleMouseEnter = async () => {
-    if (props.video) {
-      setIsVideo(true);
-      const response = await fetch(`src/assets/${props.video}`);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      setVideo(blobUrl);
+const WorkImage = ({
+  image,
+  alt,
+  video,
+  link,
+  title,
+  category,
+}: WorkImageProps) => {
+  const [imgError, setImgError] = useState(false);
+  const [isVideoAvailable, setIsVideoAvailable] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (video && videoRef.current && isVideoAvailable) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (videoRef.current) {
+      videoRef.current.pause();
     }
   };
 
   return (
-    <div className="work-image">
+    <div
+      className="work-image-wrapper"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <a
-        className="work-image-in"
-        href={props.link}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setIsVideo(false)}
+        href={link || "#"}
         target="_blank"
-        data-cursor={"disable"}
+        rel="noopener noreferrer"
+        className="work-image-link"
+        data-cursor="disable"
       >
-        {props.link && (
-          <div className="work-link">
+        <div className="work-image-container">
+          {!imgError ? (
+            <img
+              src={image}
+              alt={alt}
+              loading="lazy"
+              className="work-media-img"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="work-image-fallback">
+              <div className="fallback-glow"></div>
+              <div className="fallback-content">
+                <span className="fallback-category">{category}</span>
+                <h4 className="fallback-title">{title}</h4>
+              </div>
+            </div>
+          )}
+
+          {/* Optional WebM video on hover */}
+          {video && (
+            <video
+              ref={videoRef}
+              src={video}
+              muted
+              loop
+              playsInline
+              className={`work-media-video ${
+                isHovered && isVideoAvailable ? "active" : ""
+              }`}
+              onCanPlay={() => setIsVideoAvailable(true)}
+              onError={() => setIsVideoAvailable(false)}
+            />
+          )}
+
+          {/* Hover Arrow Button animates in */}
+          <div className="work-image-arrow">
             <MdArrowOutward />
           </div>
-        )}
-        <img src={props.image} alt={props.alt} />
-        {isVideo && <video src={video} autoPlay muted playsInline loop></video>}
+        </div>
       </a>
     </div>
   );
