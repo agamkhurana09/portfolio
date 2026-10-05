@@ -3,6 +3,8 @@ import { useRef, useMemo, useState, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment } from "@react-three/drei";
 import { EffectComposer, N8AO } from "@react-three/postprocessing";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   BallCollider,
   CuboidCollider,
@@ -10,6 +12,8 @@ import {
   RigidBody,
   RapierRigidBody,
 } from "@react-three/rapier";
+
+gsap.registerPlugin(ScrollTrigger);
 import {
   SiReact,
   SiNextdotjs,
@@ -296,19 +300,18 @@ const TechStack = () => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
-      const workEl = document.getElementById("work");
-      if (workEl) {
-        const threshold = workEl.getBoundingClientRect().top;
-        setIsActive(scrollY > threshold);
-      }
-    };
+    const trigger = ScrollTrigger.create({
+      id: "techstack",
+      trigger: ".techstack",
+      start: "top 95%",
+      onEnter: () => setIsActive(true),
+      onLeaveBack: () => setIsActive(false),
+    });
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
+    ScrollTrigger.sort();
+
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      trigger.kill();
     };
   }, []);
 
