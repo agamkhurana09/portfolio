@@ -18,23 +18,63 @@ export default function setSplitText() {
     const paras = document.querySelectorAll<SplitElement>(".para");
     const titles = document.querySelectorAll<SplitElement>(".title");
 
-    if (window.innerWidth < 900) {
-      // On mobile, revert any split and ensure text is immediately visible
-      paras.forEach((para) => {
-        if (para._splitAnim) para._splitAnim.kill();
-        if (para._splitInstance) para._splitInstance.revert();
-        gsap.set(para, { opacity: 1, visibility: "visible", y: 0, clearProps: "all" });
-      });
-      titles.forEach((title) => {
-        if (title._splitAnim) title._splitAnim.kill();
-        if (title._splitInstance) title._splitInstance.revert();
-        gsap.set(title, { opacity: 1, visibility: "visible", y: 0, clearProps: "all" });
-      });
-      return;
-    }
+    const TriggerStart = "top 80%";
+    const ToggleActions = "play none none reverse";
 
-    const TriggerStart = window.innerWidth <= 1024 ? "top 80%" : "top 75%";
+    // Title ("ABOUT ME" label) reveal: words/chars with mask
+    titles.forEach((title) => {
+      try {
+        if (title._splitAnim) {
+          title._splitAnim.kill();
+        }
+        if (title._splitInstance) {
+          title._splitInstance.revert();
+        }
 
+        title._splitInstance = SplitText.create(title, {
+          type: "words,chars",
+          mask: "words",
+          autoSplit: true,
+          onSplit(self: any) {
+            const targets =
+              self.chars && self.chars.length
+                ? self.chars
+                : self.words && self.words.length
+                ? self.words
+                : [title];
+
+            const anim = gsap.fromTo(
+              targets,
+              { opacity: 0, y: 35 },
+              {
+                opacity: 1,
+                y: 0,
+                duration: 0.7,
+                ease: "power3.out",
+                stagger: 0.02,
+                clearProps: "opacity,transform",
+                scrollTrigger: {
+                  trigger:
+                    title.closest(".about-section") ||
+                    title.closest(".about-me") ||
+                    title.parentElement ||
+                    title,
+                  start: TriggerStart,
+                  toggleActions: ToggleActions,
+                },
+              }
+            );
+            title._splitAnim = anim;
+            return anim;
+          },
+        });
+      } catch (e) {
+        console.warn("SplitText error on title:", e);
+        gsap.set(title, { opacity: 1, visibility: "visible", clearProps: "opacity,visibility" });
+      }
+    });
+
+    // Paragraph reveal: line by line (yPercent 100 to 0 inside mask: "lines", opacity 0 to 1, stagger 0.08, ease power3.out)
     paras.forEach((para) => {
       try {
         if (para._splitAnim) {
@@ -47,38 +87,36 @@ export default function setSplitText() {
         para.classList.add("visible");
 
         para._splitInstance = SplitText.create(para, {
-          type: "words,lines",
+          type: "lines",
           mask: "lines",
           autoSplit: true,
           onSplit(self: any) {
             const targets =
               self.lines && self.lines.length
                 ? self.lines
-                : self.words && self.words.length
-                ? self.words
                 : [para];
 
-            const anim = gsap.from(targets, {
-              scrollTrigger: {
-                trigger:
-                  para.closest(".about-section") || para.parentElement || para,
-                start: TriggerStart,
-                toggleActions: "play pause resume none",
-              },
-              opacity: 0,
-              y: 50,
-              duration: 1,
-              ease: "power3.out",
-              stagger: 0.04,
-              clearProps: "opacity",
-              onComplete: () => {
-                gsap.set(targets, {
-                  opacity: 1,
-                  visibility: "visible",
-                  clearProps: "opacity,visibility",
-                });
-              },
-            });
+            const anim = gsap.fromTo(
+              targets,
+              { yPercent: 100, opacity: 0 },
+              {
+                yPercent: 0,
+                opacity: 1,
+                duration: 0.9,
+                ease: "power3.out",
+                stagger: 0.08,
+                clearProps: "opacity,transform",
+                scrollTrigger: {
+                  trigger:
+                    para.closest(".about-section") ||
+                    para.closest(".about-me") ||
+                    para.parentElement ||
+                    para,
+                  start: TriggerStart,
+                  toggleActions: ToggleActions,
+                },
+              }
+            );
             para._splitAnim = anim;
             return anim;
           },
@@ -86,61 +124,6 @@ export default function setSplitText() {
       } catch (e) {
         console.warn("SplitText error on para:", e);
         gsap.set(para, { opacity: 1, visibility: "visible", clearProps: "opacity,visibility" });
-      }
-    });
-
-    titles.forEach((title) => {
-      try {
-        if (title._splitAnim) {
-          title._splitAnim.kill();
-        }
-        if (title._splitInstance) {
-          title._splitInstance.revert();
-        }
-
-        title._splitInstance = SplitText.create(title, {
-          type: "chars,lines",
-          mask: "lines",
-          autoSplit: true,
-          onSplit(self: any) {
-            const targets =
-              self.chars && self.chars.length
-                ? self.chars
-                : self.lines && self.lines.length
-                ? self.lines
-                : [title];
-
-            const anim = gsap.from(targets, {
-              scrollTrigger: {
-                trigger:
-                  title.closest(".about-section") ||
-                  title.closest(".whatIDO") ||
-                  title.parentElement ||
-                  title,
-                start: TriggerStart,
-                toggleActions: "play pause resume none",
-              },
-              opacity: 0,
-              y: 40,
-              duration: 0.8,
-              ease: "power2.out",
-              stagger: 0.02,
-              clearProps: "opacity",
-              onComplete: () => {
-                gsap.set(targets, {
-                  opacity: 1,
-                  visibility: "visible",
-                  clearProps: "opacity,visibility",
-                });
-              },
-            });
-            title._splitAnim = anim;
-            return anim;
-          },
-        });
-      } catch (e) {
-        console.warn("SplitText error on title:", e);
-        gsap.set(title, { opacity: 1, visibility: "visible", clearProps: "opacity,visibility" });
       }
     });
 

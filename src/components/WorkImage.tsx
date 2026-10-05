@@ -60,7 +60,7 @@ const WorkImage = ({
         draggable={false}
       >
         <div className="work-image-container">
-          {!imgError ? (
+          {!imgError && image ? (
             <img
               src={image}
               alt={alt}

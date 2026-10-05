@@ -32,40 +32,26 @@ export function initialFX() {
     const landingText = SplitText.create(
       [".landing-info h3", ".landing-intro h2", ".landing-intro h1"],
       {
-        type: "chars,lines",
-        mask: "lines",
+        type: "words,chars",
+        mask: "words",
         autoSplit: true,
       }
     );
     if (landingText.chars && landingText.chars.length) {
-      gsap.from(landingText.chars, {
-        opacity: 0,
-        y: 80,
-        filter: "blur(5px)",
-        duration: 1.2,
-        ease: "power3.inOut",
-        stagger: 0.025,
-        delay: 0.3,
-        clearProps: "opacity,filter",
-      });
-    }
-
-    const landingText2 = SplitText.create(".landing-h2-info", {
-      type: "chars,lines",
-      mask: "lines",
-      autoSplit: true,
-    });
-    if (landingText2.chars && landingText2.chars.length) {
-      gsap.from(landingText2.chars, {
-        opacity: 0,
-        y: 80,
-        filter: "blur(5px)",
-        duration: 1.2,
-        ease: "power3.inOut",
-        stagger: 0.025,
-        delay: 0.3,
-        clearProps: "opacity,filter",
-      });
+      gsap.fromTo(
+        landingText.chars,
+        { opacity: 0, y: 40, filter: "blur(4px)" },
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 1.1,
+          ease: "power3.out",
+          stagger: 0.02,
+          delay: 0.3,
+          clearProps: "opacity,filter,transform",
+        }
+      );
     }
 
     gsap.fromTo(
@@ -93,21 +79,60 @@ export function initialFX() {
       }
     );
 
-    const landingText3 = SplitText.create(".landing-h2-info-1", {
-      type: "chars,lines",
-      mask: "lines",
-      autoSplit: true,
-    });
     const landingText4 = SplitText.create(".landing-h2-1", {
-      type: "chars,lines",
-      mask: "lines",
+      type: "words,chars",
+      mask: "words",
       autoSplit: true,
     });
     const landingText5 = SplitText.create(".landing-h2-2", {
-      type: "chars,lines",
-      mask: "lines",
+      type: "words,chars",
+      mask: "words",
       autoSplit: true,
     });
+    const landingText2 = SplitText.create(".landing-h2-info", {
+      type: "words,chars",
+      mask: "words",
+      autoSplit: true,
+    });
+    const landingText3 = SplitText.create(".landing-h2-info-1", {
+      type: "words,chars",
+      mask: "words",
+      autoSplit: true,
+    });
+
+    // Reveal visible words cleanly
+    const initialActiveChars = [
+      ...(landingText4.chars || []),
+      ...(landingText2.chars || []),
+    ];
+    if (initialActiveChars.length) {
+      gsap.fromTo(
+        initialActiveChars,
+        { opacity: 0, y: 40, filter: "blur(4px)" },
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 1.1,
+          ease: "power3.out",
+          stagger: 0.02,
+          delay: 0.5,
+          clearProps: "opacity,filter,transform",
+        }
+      );
+    }
+
+    // Initialize alternate words hidden
+    const initialHiddenChars = [
+      ...(landingText5.chars || []),
+      ...(landingText3.chars || []),
+    ];
+    if (initialHiddenChars.length) {
+      gsap.set(initialHiddenChars, {
+        opacity: 0,
+        y: 60,
+      });
+    }
 
     if (
       landingText2.chars &&
@@ -129,75 +154,64 @@ export function initialFX() {
     // Initialize SplitText for About & other sections now that the loader has ended
     setSplitText();
     ScrollTrigger.refresh();
-
-    // Fallback: 3 seconds after loader ends, guarantee About text is fully visible
-    setTimeout(() => {
-      const aboutElements = document.querySelectorAll(
-        ".about-section, .about-me, .about-me .title, .about-me .para, .about-me *"
-      );
-      gsap.set(aboutElements, {
-        opacity: 1,
-        visibility: "visible",
-        clearProps: "visibility",
-      });
-      ScrollTrigger.refresh();
-    }, 3000);
   } catch (err) {
     console.warn("initialFX animation error:", err);
   }
 }
 
 function LoopText(Text1: any, Text2: any) {
-  var tl = gsap.timeline({ repeat: -1, repeatDelay: 1 });
-  const delay = 4;
-  const delay2 = delay * 2 + 1;
+  const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.8 });
+  const hold = 3.5;
+  const dur = 0.75;
 
-  tl.fromTo(
-    Text2.chars,
-    { opacity: 0, y: 80 },
+  tl.to(
+    Text1.chars,
     {
-      opacity: 1,
-      duration: 1.2,
+      y: -60,
+      opacity: 0,
+      duration: dur,
       ease: "power3.inOut",
-      y: 0,
-      stagger: 0.1,
-      delay: delay,
+      stagger: 0.02,
     },
-    0
+    `+=${hold}`
   )
     .fromTo(
-      Text1.chars,
-      { y: 80 },
+      Text2.chars,
+      { y: 60, opacity: 0 },
       {
-        duration: 1.2,
-        ease: "power3.inOut",
         y: 0,
-        stagger: 0.1,
-        delay: delay2,
+        opacity: 1,
+        duration: dur,
+        ease: "power3.out",
+        stagger: 0.02,
+        clearProps: "transform",
       },
-      1
-    )
-    .fromTo(
-      Text1.chars,
-      { y: 0 },
-      {
-        y: -80,
-        duration: 1.2,
-        ease: "power3.inOut",
-        stagger: 0.1,
-        delay: delay,
-      },
-      0
+      "<0.1"
     )
     .to(
       Text2.chars,
       {
-        y: -80,
-        duration: 1.2,
+        y: -60,
+        opacity: 0,
+        duration: dur,
         ease: "power3.inOut",
-        stagger: 0.1,
-        delay: delay2,
+        stagger: 0.02,
       },
-      1
+      `+=${hold}`
+    )
+    .fromTo(
+      Text1.chars,
+      { y: 60, opacity: 0 },
+      {
+        y: 0,
+        opacity: 1,
+        duration: dur,
+        ease: "power3.out",
+        stagger: 0.02,
+        clearProps: "transform",
+      },
+      "<0.1"
     );
+
+  return tl;
 }

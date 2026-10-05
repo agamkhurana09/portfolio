@@ -110,7 +110,10 @@ const Career = () => {
     activeTab === "experience" ? experienceData : educationData;
 
   useEffect(() => {
+    ScrollTrigger.config({ ignoreMobileResize: true });
+
     const handleRefresh = () => {
+      ScrollTrigger.sort();
       ScrollTrigger.refresh();
     };
 
@@ -118,6 +121,13 @@ const Career = () => {
     if (document.fonts) {
       document.fonts.ready.then(handleRefresh);
     }
+
+    const imgs = containerRef.current?.querySelectorAll("img");
+    imgs?.forEach((img) => {
+      if (img.complete) return;
+      img.addEventListener("load", handleRefresh, { once: true });
+    });
+
     return () => {
       window.removeEventListener("load", handleRefresh);
     };
@@ -125,8 +135,9 @@ const Career = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      ScrollTrigger.sort();
       ScrollTrigger.refresh();
-    }, 60);
+    }, 80);
     return () => clearTimeout(timer);
   }, [activeTab]);
 
@@ -163,12 +174,14 @@ const Career = () => {
                 ease: "power2.out",
                 onComplete: () => {
                   isTransitioningRef.current = false;
+                  ScrollTrigger.sort();
                   ScrollTrigger.refresh();
                 },
               }
             );
           } else {
             isTransitioningRef.current = false;
+            ScrollTrigger.sort();
             ScrollTrigger.refresh();
           }
         });
@@ -179,6 +192,8 @@ const Career = () => {
   useGSAP(
     () => {
       try {
+        ScrollTrigger.config({ ignoreMobileResize: true });
+
         const prefersReducedMotion = window.matchMedia(
           "(prefers-reduced-motion: reduce)"
         ).matches;
@@ -210,29 +225,33 @@ const Career = () => {
           });
         }
 
-        // 2. Timeline glowing line animation
-        const timelineLine =
-          containerRef.current?.querySelector<HTMLElement>(".career-timeline");
-        if (timelineLine) {
+        // 2. Timeline glowing line & dot animation driven by ONE ScrollTrigger
+        const lineEl =
+          containerRef.current?.querySelector<HTMLElement>(".career-line");
+        const dotEl =
+          containerRef.current?.querySelector<HTMLElement>(".career-dot");
+        const infoContainer = contentRef.current;
+
+        if (infoContainer && lineEl && dotEl) {
           if (prefersReducedMotion) {
-            gsap.set(timelineLine, { maxHeight: "100%", opacity: 1 });
+            gsap.set(lineEl, { scaleY: 1 });
+            gsap.set(dotEl, { y: () => infoContainer.offsetHeight });
           } else {
-            gsap.fromTo(
-              timelineLine,
-              { maxHeight: "0%", opacity: 0.4 },
-              {
-                maxHeight: "100%",
-                opacity: 1,
-                ease: "none",
-                scrollTrigger: {
-                  trigger: ".career-info",
-                  start: "top 75%",
-                  end: "bottom 75%",
-                  scrub: 0.5,
-                  invalidateOnRefresh: true,
-                },
-              }
-            );
+            gsap.set(lineEl, { scaleY: 0, transformOrigin: "top center" });
+            gsap.set(dotEl, { y: 0 });
+
+            ScrollTrigger.create({
+              trigger: infoContainer,
+              start: "top 70%",
+              end: "bottom 60%",
+              scrub: 0.5,
+              invalidateOnRefresh: true,
+              onUpdate: (self) => {
+                const containerHeight = infoContainer.offsetHeight;
+                gsap.set(lineEl, { scaleY: self.progress });
+                gsap.set(dotEl, { y: self.progress * containerHeight });
+              },
+            });
           }
         }
 
@@ -323,6 +342,7 @@ const Career = () => {
         {/* Timeline with vertical progress line & dot */}
         <div className="career-info" ref={contentRef}>
           <div className="career-timeline">
+            <div className="career-line"></div>
             <div className="career-dot"></div>
           </div>
 

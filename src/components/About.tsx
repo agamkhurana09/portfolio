@@ -1,10 +1,8 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { SplitText } from "gsap/SplitText";
+import setSplitText from "./utils/splitText";
 import "./styles/About.css";
-
-gsap.registerPlugin(ScrollTrigger, SplitText);
 
 const aboutData = {
   title: "About Me",
@@ -16,22 +14,67 @@ const About = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Fallback: 3 seconds after mount/loader ends, ensure About text is visible at opacity 1
-    const fallbackTimer = setTimeout(() => {
-      if (containerRef.current) {
-        const textEls = containerRef.current.querySelectorAll(
-          ".title, .para, .title *, .para *"
-        );
-        gsap.set(textEls, {
-          opacity: 1,
-          visibility: "visible",
-          clearProps: "visibility",
-        });
-        ScrollTrigger.refresh();
-      }
-    }, 3000);
+    // Initialize reveal animation
+    setSplitText();
 
-    return () => clearTimeout(fallbackTimer);
+    // Fallback: 3 seconds past the section entering the viewport, guarantee final state is fully visible
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    const enterTrigger = ScrollTrigger.create({
+      trigger: containerRef.current,
+      start: "top bottom",
+      once: true,
+      onEnter: () => {
+        fallbackTimer = setTimeout(() => {
+          if (containerRef.current) {
+            const textEls = containerRef.current.querySelectorAll(
+              ".title, .para, .title *, .para *"
+            );
+            gsap.set(textEls, {
+              opacity: 1,
+              visibility: "visible",
+              y: 0,
+              yPercent: 0,
+              clearProps: "opacity,visibility,transform",
+            });
+          }
+        }, 3000);
+      },
+    });
+
+    let observer: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined" && containerRef.current) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting) {
+            if (!fallbackTimer) {
+              fallbackTimer = setTimeout(() => {
+                if (containerRef.current) {
+                  const textEls = containerRef.current.querySelectorAll(
+                    ".title, .para, .title *, .para *"
+                  );
+                  gsap.set(textEls, {
+                    opacity: 1,
+                    visibility: "visible",
+                    y: 0,
+                    yPercent: 0,
+                    clearProps: "opacity,visibility,transform",
+                  });
+                }
+              }, 3000);
+            }
+            observer?.disconnect();
+          }
+        },
+        { threshold: 0.05 }
+      );
+      observer.observe(containerRef.current);
+    }
+
+    return () => {
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      enterTrigger.kill();
+      if (observer) observer.disconnect();
+    };
   }, []);
 
   return (

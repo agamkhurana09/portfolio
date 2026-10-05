@@ -179,11 +179,16 @@ const Work = () => {
     if (!trackRef.current) return;
     const cards = trackRef.current.querySelectorAll<HTMLElement>(".work-card");
     if (cards.length >= 8) {
-      const r0 = cards[0].getBoundingClientRect();
-      const r4 = cards[4].getBoundingClientRect();
-      const dist = r4.left - r0.left;
+      const dist = cards[4].offsetLeft - cards[0].offsetLeft;
       if (dist > 50) {
         loopWidthRef.current = dist;
+      } else {
+        const r0 = cards[0].getBoundingClientRect();
+        const r4 = cards[4].getBoundingClientRect();
+        const fallbackDist = r4.left - r0.left;
+        if (fallbackDist > 50) {
+          loopWidthRef.current = fallbackDist;
+        }
       }
     }
   }, []);
@@ -195,7 +200,7 @@ const Work = () => {
     }
   }, [prefersReducedMotion]);
 
-  // Recalibrate trigger positions and dimensions after fonts/images load & Experience height changes
+  // Recalibrate trigger positions and dimensions after layout, fonts/images load & Experience height changes
   useEffect(() => {
     const handleRefresh = () => {
       updateLoopWidth();
@@ -208,6 +213,27 @@ const Work = () => {
     if (document.fonts) {
       document.fonts.ready.then(handleRefresh);
     }
+
+    // ResizeObserver on trackRef to compute loop width after layout, never at mount
+    let trackObserver: ResizeObserver | null = null;
+    if (trackRef.current && typeof ResizeObserver !== "undefined") {
+      trackObserver = new ResizeObserver(() => {
+        updateLoopWidth();
+      });
+      trackObserver.observe(trackRef.current);
+    }
+
+    // Listen for image loads to recompute loop width
+    const handleImgLoad = () => {
+      updateLoopWidth();
+      ScrollTrigger.refresh();
+    };
+    const imgs = trackRef.current?.querySelectorAll("img");
+    imgs?.forEach((img) => {
+      if (img.complete) return;
+      img.addEventListener("load", handleImgLoad, { once: true });
+      img.addEventListener("error", handleImgLoad, { once: true });
+    });
 
     const careerSection = document.querySelector(".career-section");
     let resizeObserver: ResizeObserver | null = null;
@@ -230,12 +256,30 @@ const Work = () => {
       gsap.ticker.lagSmoothing(0);
     }
 
-    const timer = setTimeout(handleRefresh, 350);
+    // Fallback: sets all cards to opacity 1 if they are still hidden 2 seconds after the section mounts
+    const fallbackTimer = setTimeout(() => {
+      if (trackRef.current) {
+        const cards = trackRef.current.querySelectorAll<HTMLElement>(".work-card");
+        cards.forEach((card) => {
+          const comp = window.getComputedStyle(card);
+          if (comp.opacity === "0" || parseFloat(comp.opacity) < 0.1) {
+            gsap.set(card, {
+              opacity: 1,
+              y: 0,
+              clearProps: "opacity,transform",
+            });
+          }
+        });
+      }
+    }, 2000);
 
     return () => {
       window.removeEventListener("load", handleRefresh);
       window.removeEventListener("resize", handleRefresh);
-      clearTimeout(timer);
+      clearTimeout(fallbackTimer);
+      if (trackObserver) {
+        trackObserver.disconnect();
+      }
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
@@ -330,6 +374,10 @@ const Work = () => {
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
 
+    if (loopWidthRef.current <= 0) {
+      updateLoopWidth();
+    }
+
     isDraggingRef.current = true;
     setIsDragging(true);
     hasMovedRef.current = false;
@@ -337,6 +385,10 @@ const Work = () => {
     lastXRef.current = e.clientX;
     lastTimeRef.current = performance.now();
     momentumVelocityRef.current = 0;
+
+    try {
+      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    } catch {}
 
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
@@ -375,33 +427,37 @@ const Work = () => {
   useGSAP(
     () => {
       // 1. Entrance animation: cards fade and slide up once when section enters viewport
-      const cards = trackRef.current?.querySelectorAll(".work-card");
+      const cards = trackRef.current?.querySelectorAll<HTMLElement>(".work-card");
       if (cards && cards.length > 0) {
-        gsap.from(cards, {
-          opacity: 0,
-          y: 40,
-          duration: 0.9,
-          stagger: 0.08,
-          ease: "power2.out",
-          clearProps: "opacity",
-          scrollTrigger: {
-            trigger: "#work",
-            start: "top 80%",
-            once: true,
-          },
-        });
+        gsap.fromTo(
+          cards,
+          { opacity: 0, y: 40 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.9,
+            stagger: 0.08,
+            ease: "power2.out",
+            immediateRender: false,
+            clearProps: "opacity,transform",
+            scrollTrigger: {
+              trigger: "#work",
+              start: "top 80%",
+              once: true,
+            },
+          }
+        );
       }
-
-      updateLoopWidth();
 
       // Continuous ticker loop for smooth auto-scroll, momentum, and scroll boost
       const tick = (_time: number, deltaTime: number) => {
         const dt = Math.min(deltaTime / 1000, 0.1);
-        const loopWidth = loopWidthRef.current;
+        let loopWidth = loopWidthRef.current;
 
         if (!loopWidth || loopWidth <= 0) {
           updateLoopWidth();
-          return;
+          loopWidth = loopWidthRef.current;
+          if (!loopWidth || loopWidth <= 0) return;
         }
 
         if (isDraggingRef.current) {
