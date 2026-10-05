@@ -37,11 +37,19 @@ const setCharacter = (
               }
             });
             resolve(gltf);
-            setCharTimeline(character, camera);
-            setAllTimeline();
-            character!.getObjectByName("footR")!.position.y = 3.36;
-            character!.getObjectByName("footL")!.position.y = 3.36;
-            dracoLoader.dispose();
+            try {
+              setCharTimeline(character, camera);
+              setAllTimeline();
+              const footR = character?.getObjectByName("footR");
+              if (footR) footR.position.y = 3.36;
+              const footL = character?.getObjectByName("footL");
+              if (footL) footL.position.y = 3.36;
+            } catch (err) {
+              console.warn("Error setting character timelines or bones:", err);
+            }
+            try {
+              dracoLoader.dispose();
+            } catch {}
           },
           undefined,
           (error) => {

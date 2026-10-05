@@ -1,18 +1,31 @@
-import { SplitText } from "gsap-trial/SplitText";
+import { SplitText } from "gsap/SplitText";
 import gsap from "gsap";
 import { smoother } from "../Navbar";
 
 export function initialFX() {
   document.body.style.overflowY = "auto";
-  smoother.paused(false);
-  document.getElementsByTagName("main")[0].classList.add("main-active");
-  gsap.to("body", {
-    backgroundColor: "#0b080c",
-    duration: 0.5,
-    delay: 1,
-  });
 
-  var landingText = new SplitText(
+  try {
+    if (smoother && typeof smoother.paused === "function") {
+      smoother.paused(false);
+    }
+  } catch (err) {
+    console.warn("Error unpausing smoother:", err);
+  }
+
+  try {
+    const mainEl = document.getElementsByTagName("main")[0];
+    if (mainEl) {
+      mainEl.classList.add("main-active");
+    }
+
+    gsap.to("body", {
+      backgroundColor: "#0b080c",
+      duration: 0.5,
+      delay: 1,
+    });
+
+    var landingText = new SplitText(
     [".landing-info h3", ".landing-intro h2", ".landing-intro h1"],
     {
       type: "chars,lines",
@@ -76,8 +89,11 @@ export function initialFX() {
   var landingText4 = new SplitText(".landing-h2-1", TextProps);
   var landingText5 = new SplitText(".landing-h2-2", TextProps);
 
-  LoopText(landingText2, landingText3);
-  LoopText(landingText4, landingText5);
+    LoopText(landingText2, landingText3);
+    LoopText(landingText4, landingText5);
+  } catch (err) {
+    console.warn("initialFX animation error:", err);
+  }
 }
 
 function LoopText(Text1: SplitText, Text2: SplitText) {

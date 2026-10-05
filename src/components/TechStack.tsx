@@ -300,18 +300,32 @@ const TechStack = () => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const trigger = ScrollTrigger.create({
-      id: "techstack",
-      trigger: ".techstack",
-      start: "top 95%",
-      onEnter: () => setIsActive(true),
-      onLeaveBack: () => setIsActive(false),
-    });
+    let trigger: ScrollTrigger | null = null;
+    try {
+      trigger = ScrollTrigger.create({
+        id: "techstack",
+        trigger: ".techstack",
+        start: "top 95%",
+        onEnter: () => setIsActive(true),
+        onLeaveBack: () => setIsActive(false),
+      });
 
-    ScrollTrigger.sort();
+      // Sort in page order then refresh so Work's pinSpacing is correctly measured
+      // with TechStack's real position in the DOM.
+      ScrollTrigger.sort();
+      requestAnimationFrame(() => {
+        try {
+          ScrollTrigger.refresh();
+        } catch {}
+      });
+    } catch (err) {
+      console.warn("TechStack ScrollTrigger error:", err);
+    }
 
     return () => {
-      trigger.kill();
+      try {
+        trigger?.kill();
+      } catch {}
     };
   }, []);
 

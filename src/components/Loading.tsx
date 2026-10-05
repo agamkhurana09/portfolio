@@ -10,28 +10,59 @@ const Loading = ({ percent }: { percent: number }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [clicked, setClicked] = useState(false);
 
-  if (percent >= 100) {
-    setTimeout(() => {
-      setLoaded(true);
-      setTimeout(() => {
-        setIsLoaded(true);
-      }, 1000);
-    }, 600);
-  }
+  useEffect(() => {
+    if (percent >= 100) {
+      const t1 = setTimeout(() => {
+        setLoaded(true);
+        const t2 = setTimeout(() => {
+          setIsLoaded(true);
+        }, 1000);
+        return () => clearTimeout(t2);
+      }, 600);
+      return () => clearTimeout(t1);
+    }
+  }, [percent]);
 
   useEffect(() => {
-    import("./utils/initialFX").then((module) => {
-      if (isLoaded) {
-        setClicked(true);
-        setTimeout(() => {
-          if (module.initialFX) {
-            module.initialFX();
-          }
+    if (isLoaded) {
+      setClicked(true);
+      import("./utils/initialFX")
+        .then((module) => {
+          setTimeout(() => {
+            try {
+              if (module.initialFX) {
+                module.initialFX();
+              }
+            } catch (err) {
+              console.warn("initialFX execution error:", err);
+            } finally {
+              setIsLoading(false);
+              document.body.style.overflowY = "auto";
+            }
+          }, 900);
+        })
+        .catch((err) => {
+          console.warn("Failed to load initialFX module:", err);
           setIsLoading(false);
-        }, 900);
-      }
-    });
-  }, [isLoaded]);
+          document.body.style.overflowY = "auto";
+        });
+    }
+  }, [isLoaded, setIsLoading]);
+
+  // Hard 6-second timeout ensures loader is removed even if everything else stalls
+  useEffect(() => {
+    const hardTimeout = setTimeout(() => {
+      setLoaded(true);
+      setIsLoaded(true);
+      setClicked(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        document.body.style.overflowY = "auto";
+      }, 300);
+    }, 6000);
+
+    return () => clearTimeout(hardTimeout);
+  }, [setIsLoading]);
 
   function handleMouseMove(e: React.MouseEvent<HTMLElement>) {
     const { currentTarget: target } = e;

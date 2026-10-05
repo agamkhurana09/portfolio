@@ -178,84 +178,88 @@ const Career = () => {
 
   useGSAP(
     () => {
-      const prefersReducedMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)"
-      ).matches;
+      try {
+        const prefersReducedMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)"
+        ).matches;
 
-      // 1. Stat Counters animation
-      const statEls =
-        containerRef.current?.querySelectorAll<HTMLElement>(".stat-count");
-      if (statEls) {
-        statEls.forEach((el) => {
-          const target = parseFloat(el.getAttribute("data-target") || "0");
-          if (prefersReducedMotion) {
-            el.innerText = target.toString();
-            return;
-          }
-          const counterObj = { count: 0 };
-          gsap.to(counterObj, {
-            count: target,
-            duration: 1.6,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: el,
-              start: "top 85%",
-              once: true,
-            },
-            onUpdate: () => {
-              el.innerText = Math.round(counterObj.count).toString();
-            },
-          });
-        });
-      }
-
-      // 2. Timeline glowing line animation
-      const timelineLine =
-        containerRef.current?.querySelector<HTMLElement>(".career-timeline");
-      if (timelineLine) {
-        if (prefersReducedMotion) {
-          gsap.set(timelineLine, { maxHeight: "100%", opacity: 1 });
-        } else {
-          gsap.fromTo(
-            timelineLine,
-            { maxHeight: "0%", opacity: 0.4 },
-            {
-              maxHeight: "100%",
-              opacity: 1,
-              ease: "none",
-              scrollTrigger: {
-                trigger: ".career-info",
-                start: "top 75%",
-                end: "bottom 75%",
-                scrub: 0.5,
-                invalidateOnRefresh: true,
-              },
+        // 1. Stat Counters animation
+        const statEls =
+          containerRef.current?.querySelectorAll<HTMLElement>(".stat-count");
+        if (statEls) {
+          statEls.forEach((el) => {
+            const target = parseFloat(el.getAttribute("data-target") || "0");
+            if (prefersReducedMotion) {
+              el.innerText = target.toString();
+              return;
             }
-          );
-        }
-      }
-
-      // 3. Stagger career items
-      const infoBoxes =
-        containerRef.current?.querySelectorAll<HTMLElement>(".career-info-box");
-      if (infoBoxes && !prefersReducedMotion) {
-        infoBoxes.forEach((box) => {
-          gsap.fromTo(
-            box,
-            { opacity: 0, y: 25 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.5,
+            const counterObj = { count: 0 };
+            gsap.to(counterObj, {
+              count: target,
+              duration: 1.6,
               ease: "power2.out",
               scrollTrigger: {
-                trigger: box,
-                start: "top 88%",
-                toggleActions: "play none none reverse",
+                trigger: el,
+                start: "top 85%",
+                once: true,
               },
-            }
-          );
-        });
+              onUpdate: () => {
+                el.innerText = Math.round(counterObj.count).toString();
+              },
+            });
+          });
+        }
+
+        // 2. Timeline glowing line animation
+        const timelineLine =
+          containerRef.current?.querySelector<HTMLElement>(".career-timeline");
+        if (timelineLine) {
+          if (prefersReducedMotion) {
+            gsap.set(timelineLine, { maxHeight: "100%", opacity: 1 });
+          } else {
+            gsap.fromTo(
+              timelineLine,
+              { maxHeight: "0%", opacity: 0.4 },
+              {
+                maxHeight: "100%",
+                opacity: 1,
+                ease: "none",
+                scrollTrigger: {
+                  trigger: ".career-info",
+                  start: "top 75%",
+                  end: "bottom 75%",
+                  scrub: 0.5,
+                  invalidateOnRefresh: true,
+                },
+              }
+            );
+          }
+        }
+
+        // 3. Stagger career items
+        const infoBoxes =
+          containerRef.current?.querySelectorAll<HTMLElement>(".career-info-box");
+        if (infoBoxes && !prefersReducedMotion) {
+          infoBoxes.forEach((box) => {
+            gsap.fromTo(
+              box,
+              { opacity: 0, y: 25 },
+              {
+                opacity: 1,
+                y: 0,
+                duration: 0.5,
+                ease: "power2.out",
+                scrollTrigger: {
+                  trigger: box,
+                  start: "top 88%",
+                  toggleActions: "play none none reverse",
+                },
+              }
+            );
+          });
+        }
+      } catch (err) {
+        console.warn("Career GSAP setup error:", err);
       }
     },
     { scope: containerRef, dependencies: [activeTab] }

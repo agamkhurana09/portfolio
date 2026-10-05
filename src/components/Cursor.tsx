@@ -14,12 +14,13 @@ const Cursor = () => {
       mousePos.y = e.clientY;
     });
     requestAnimationFrame(function loop() {
-      if (!hover) {
+      if (!hover && cursor) {
         const delay = 6;
         cursorPos.x += (mousePos.x - cursorPos.x) / delay;
         cursorPos.y += (mousePos.y - cursorPos.y) / delay;
-        gsap.to(cursor, { x: cursorPos.x, y: cursorPos.y, duration: 0.1 });
-        // cursor.style.transform = `translate(${cursorPos.x}px, ${cursorPos.y}px)`;
+        try {
+          gsap.to(cursor, { x: cursorPos.x, y: cursorPos.y, duration: 0.1 });
+        } catch {}
       }
       requestAnimationFrame(loop);
     });

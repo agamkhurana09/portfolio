@@ -19,7 +19,11 @@ const MainContainer = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     const resizeHandler = () => {
-      setSplitText();
+      try {
+        setSplitText();
+      } catch (e) {
+        console.warn("setSplitText error:", e);
+      }
       setIsDesktopView(window.innerWidth > 1024);
     };
     resizeHandler();
@@ -27,7 +31,7 @@ const MainContainer = ({ children }: PropsWithChildren) => {
     return () => {
       window.removeEventListener("resize", resizeHandler);
     };
-  }, [isDesktopView]);
+  }, []);
 
   return (
     <div className="container-main">
